@@ -11,7 +11,6 @@ app.get('/', (req, res) => {
   res.send('Servidor CR Recargas activo');
 });
 
-// Ruta de verificación de ID
 app.get('/api/verify-id', async (req, res) => {
   const playerId = req.query.id;
 
@@ -20,50 +19,38 @@ app.get('/api/verify-id', async (req, res) => {
   }
 
   try {
-    // API de verificación pública Pagostore / Garena Free Fire
-    const response = await fetch(`https://mshop.garena.sg/api/auth/player_id_login`, {
-      method: 'POST',
+    const response = await fetch(`https://api.yevapi.com/ff/info?id=${playerId}&region=sac`, {
       headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-        'Accept-Language': 'es-ES,es;q=0.9',
-        'Referer': 'https://mshop.garena.sg/'
-      },
-      body: JSON.stringify({
-        app_id: 100067,
-        login_id: playerId,
-        app_server_id: 0
-      })
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+      }
     });
 
     const data = await response.json();
 
-    // Validar si retorna el apodo del jugador
-    if (data && (data.nickname || data.player_name)) {
+    if (data && (data.nickname || data.name || data.PlayerName)) {
       return res.json({
         success: true,
-        nickname: data.nickname || data.player_name
+        nickname: data.nickname || data.name || data.PlayerName
       });
     }
 
-    // Alternativa si el objeto viene envuelto en un campo de usuario
-    if (data && data.user_info && data.user_info.nickname) {
+    if (data && data.data && (data.data.nickname || data.data.username)) {
       return res.json({
         success: true,
-        nickname: data.user_info.nickname
+        nickname: data.data.nickname || data.data.username
       });
     }
 
     return res.json({
       success: false,
-      message: 'ID no encontrado. Revisa los números ingresados.'
+      message: 'ID no encontrado. Verifica los números.'
     });
 
   } catch (error) {
-    console.error('Error al conectar con Garena:', error);
+    console.error('Error al verificar ID:', error);
     return res.status(500).json({
       success: false,
-      message: 'Error de conexión con el servicio de Garena'
+      message: 'Error de conexión con el servidor de verificación'
     });
   }
 });
