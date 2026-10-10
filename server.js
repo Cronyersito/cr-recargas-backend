@@ -19,38 +19,48 @@ app.get('/api/verify-id', async (req, res) => {
   }
 
   try {
-    const response = await fetch(`https://api.yevapi.com/ff/info?id=${playerId}&region=sac`, {
+    // Petición directa al endpoint oficial de Pagostore Garena
+    const response = await fetch('https://shop.garena.sg/api/auth/player_id_login', {
+      method: 'POST',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-      }
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Origin': 'https://shop.garena.sg',
+        'Referer': 'https://shop.garena.sg/'
+      },
+      body: JSON.stringify({
+        app_id: 100067,
+        login_id: playerId,
+        app_server_id: 0
+      })
     });
 
     const data = await response.json();
 
-    if (data && (data.nickname || data.name || data.PlayerName)) {
+    if (data && data.nickname) {
       return res.json({
         success: true,
-        nickname: data.nickname || data.name || data.PlayerName
+        nickname: data.nickname
       });
     }
 
-    if (data && data.data && (data.data.nickname || data.data.username)) {
+    if (data && data.user_info && data.user_info.nickname) {
       return res.json({
         success: true,
-        nickname: data.data.nickname || data.data.username
+        nickname: data.user_info.nickname
       });
     }
 
     return res.json({
       success: false,
-      message: 'ID no encontrado. Verifica los números.'
+      message: 'ID no encontrado en Free Fire'
     });
 
   } catch (error) {
-    console.error('Error al verificar ID:', error);
+    console.error('Error al conectar con Garena:', error);
     return res.status(500).json({
       success: false,
-      message: 'Error de conexión con el servidor de verificación'
+      message: 'Error de servidor al consultar Garena'
     });
   }
 });
