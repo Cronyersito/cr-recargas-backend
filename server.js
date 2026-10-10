@@ -19,24 +19,21 @@ app.get('/api/verify-id', async (req, res) => {
   }
 
   try {
-    // Petición directa al endpoint oficial de Pagostore Garena
-    const response = await fetch('https://shop.garena.sg/api/auth/player_id_login', {
-      method: 'POST',
+    // Petición al endpoint público de verificación de Free Fire LATAM / SAC
+    const apiUrl = `https://region-sac.ff.garena.com/api/client/checkout/get_player_id?app_id=100067&player_id=${playerId}`;
+    
+    const response = await fetch(apiUrl, {
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Origin': 'https://shop.garena.sg',
-        'Referer': 'https://shop.garena.sg/'
-      },
-      body: JSON.stringify({
-        app_id: 100067,
-        login_id: playerId,
-        app_server_id: 0
-      })
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'es-ES,es;q=0.9'
+      }
     });
 
     const data = await response.json();
 
+    // Verificación de respuesta
     if (data && data.nickname) {
       return res.json({
         success: true,
@@ -44,23 +41,23 @@ app.get('/api/verify-id', async (req, res) => {
       });
     }
 
-    if (data && data.user_info && data.user_info.nickname) {
+    if (data && data.data && data.data.nickname) {
       return res.json({
         success: true,
-        nickname: data.user_info.nickname
+        nickname: data.data.nickname
       });
     }
 
     return res.json({
       success: false,
-      message: 'ID no encontrado en Free Fire'
+      message: 'ID no encontrado en la región LATAM'
     });
 
   } catch (error) {
-    console.error('Error al conectar con Garena:', error);
+    console.error('Error al verificar en Garena:', error);
     return res.status(500).json({
       success: false,
-      message: 'Error de servidor al consultar Garena'
+      message: 'Error al conectar con la API de Free Fire'
     });
   }
 });
