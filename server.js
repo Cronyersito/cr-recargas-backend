@@ -12,18 +12,24 @@ app.get('/', (req, res) => {
 });
 
 app.get('/api/verify-id', async (req, res) => {
-  const playerId = req.query.id;
+  const playerId = String(req.query.id || '').trim();
 
   if (!playerId) {
     return res.status(400).json({ success: false, message: 'ID requerido' });
   }
+  if (!/^\d{6,12}$/.test(playerId)) {
+    return res.status(400).json({ success: false, message: 'ID inválido' });
+  }
+
+  const apiUrl = `https://region-sac.ff.garena.com/api/client/checkout/get_player_id?app_id=100067&player_id=${playerId}`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
 
   try {
-    // Petición al endpoint público de verificación de Free Fire LATAM / SAC
-    const apiUrl = `https://region-sac.ff.garena.com/api/client/checkout/get_player_id?app_id=100067&player_id=${playerId}`;
-    
     const response = await fetch(apiUrl, {
       method: 'GET',
+      signal: controller.signal,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'application/json, text/plain, */*',
@@ -31,34 +37,46 @@ app.get('/api/verify-id', async (req, res) => {
       }
     });
 
-    const data = await response.json();
+    // Leemos como texto primero para poder ver qué responde Garena
+    const body = await response.text();
+    console.log('[verify-id]', playerId, 'status:', response.status, 'body:', body.slice(0, 500));
 
-    // Verificación de respuesta
-    if (data && data.nickname) {
-      return res.json({
-        success: true,
-        nickname: data.nickname
+    if (!response.ok) {
+      return res.status(502).json({
+        success: false,
+        message: `Garena respondió con status ${response.status}`
       });
     }
 
-    if (data && data.data && data.data.nickname) {
-      return res.json({
-        success: true,
-        nickname: data.data.nickname
+    let data;
+    try {
+      data = JSON.parse(body);
+    } catch {
+      return res.status(502).json({
+        success: false,
+        message: 'Garena no devolvió JSON (posible bloqueo)'
       });
     }
 
-    return res.json({
+    const nickname = data?.nickname || data?.data?.nickname || data?.name;
+
+    if (nickname) {
+      return res.json({ success: true, nickname });
+    }
+
+    return res.status(404).json({
       success: false,
       message: 'ID no encontrado en la región LATAM'
     });
 
   } catch (error) {
-    console.error('Error al verificar en Garena:', error);
-    return res.status(500).json({
+    console.error('[verify-id] fallo:', error.name, error.message, error.cause?.code || error.cause);
+    return res.status(502).json({
       success: false,
       message: 'Error al conectar con la API de Free Fire'
     });
+  } finally {
+    clearTimeout(timer);
   }
 });
 
