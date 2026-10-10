@@ -20,37 +20,50 @@ app.get('/api/verify-id', async (req, res) => {
   }
 
   try {
-    // Consulta por POST a Pagostore LATAM
-    const response = await fetch('https://shop.garena.sg/api/auth/player_id_login', {
+    // API de verificación pública Pagostore / Garena Free Fire
+    const response = await fetch(`https://mshop.garena.sg/api/auth/player_id_login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+        'Accept-Language': 'es-ES,es;q=0.9',
+        'Referer': 'https://mshop.garena.sg/'
       },
       body: JSON.stringify({
         app_id: 100067,
-        login_id: playerId
+        login_id: playerId,
+        app_server_id: 0
       })
     });
 
     const data = await response.json();
 
-    if (data && data.nickname) {
+    // Validar si retorna el apodo del jugador
+    if (data && (data.nickname || data.player_name)) {
       return res.json({
         success: true,
-        nickname: data.nickname
-      });
-    } else {
-      return res.json({
-        success: false,
-        message: 'ID no encontrado en Garena'
+        nickname: data.nickname || data.player_name
       });
     }
+
+    // Alternativa si el objeto viene envuelto en un campo de usuario
+    if (data && data.user_info && data.user_info.nickname) {
+      return res.json({
+        success: true,
+        nickname: data.user_info.nickname
+      });
+    }
+
+    return res.json({
+      success: false,
+      message: 'ID no encontrado. Revisa los números ingresados.'
+    });
+
   } catch (error) {
     console.error('Error al conectar con Garena:', error);
     return res.status(500).json({
       success: false,
-      message: 'Error de conexion con Garena'
+      message: 'Error de conexión con el servicio de Garena'
     });
   }
 });
